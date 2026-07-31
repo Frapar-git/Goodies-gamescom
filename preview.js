@@ -1,6 +1,14 @@
 const fetching = new Set();
 const failed = new Set();
 
+export function proxiedImageUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return "";
+  if (/images\.weserv\.nl/i.test(value)) return value;
+  const cleaned = value.replace(/^https?:\/\//i, "");
+  return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}&w=960&output=webp`;
+}
+
 export async function fetchLinkImage(pageUrl) {
   const url = String(pageUrl || "").trim();
   if (!url || failed.has(url) || fetching.has(url)) return "";

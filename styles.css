@@ -284,6 +284,11 @@ input:focus {
   color: rgba(255, 225, 74, 0.9);
 }
 
+#catalogSearch {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 .filters {
   display: flex;
   gap: 8px;

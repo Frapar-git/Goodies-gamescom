@@ -1,5 +1,5 @@
 import { parseDiscordPaste, shopFromUrl } from "./parser.js";
-import { fetchLinkImage } from "./preview.js";
+import { fetchLinkImage, proxiedImageUrl } from "./preview.js";
 import {
   createId,
   fingerprint,
@@ -13,6 +13,7 @@ const state = {
   goodies: loadGoodies(),
   view: "swipe",
   filter: "all",
+  search: "",
   preview: [],
   history: [],
   drag: null,
@@ -30,6 +31,7 @@ const els = {
   selectAllPreview: document.getElementById("selectAllPreview"),
   catalogList: document.getElementById("catalogList"),
   catalogEmpty: document.getElementById("catalogEmpty"),
+  catalogSearch: document.getElementById("catalogSearch"),
   toast: document.getElementById("toast"),
   quickAddDialog: document.getElementById("quickAddDialog"),
   quickAddForm: document.getElementById("quickAddForm"),
@@ -122,12 +124,17 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function mediaImgHtml(imageUrl) {
+  const src = proxiedImageUrl(imageUrl);
+  return `<img src="${escapeHtml(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="${escapeHtml(imageUrl)}" />`;
+}
+
 function renderMediaHtml(item) {
   if (item.image) {
-    return `<div class="media-frame"><img src="${escapeHtml(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" /></div>`;
+    return `<div class="media-frame">${mediaImgHtml(item.image)}</div>`;
   }
   if (item.url) {
-    return `<div class="media-frame is-loading" data-preview-id="${escapeHtml(item.id)}">Aperçu en cours…</div>`;
+    return `<div class="media-frame is-loading" data-preview-id="${escapeHtml(item.id || "")}">Aperçu en cours…</div>`;
   }
   return "";
 }
@@ -185,13 +192,13 @@ async function queuePreviewFetch(item) {
   current.image = image;
   persist({ silent: true });
   document.querySelectorAll(`[data-preview-id="${item.id}"]`).forEach((node) => {
-    node.classList.remove("is-loading");
-    node.innerHTML = `<img src="${escapeHtml(image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`;
+    node.classList.remove("is-loading", "is-missing");
+    node.innerHTML = mediaImgHtml(image);
   });
   const catalogNode = els.catalogList.querySelector(`[data-item-id="${item.id}"] .media-frame`);
   if (catalogNode && !catalogNode.querySelector("img")) {
     catalogNode.classList.remove("is-loading", "is-missing");
-    catalogNode.innerHTML = `<img src="${escapeHtml(image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`;
+    catalogNode.innerHTML = mediaImgHtml(image);
   }
 }
 
@@ -297,24 +304,48 @@ function renderPreview() {
         state.preview[index].image = image;
         const frame = li.querySelector(".media-frame");
         if (frame) {
-          frame.classList.remove("is-loading");
-          frame.innerHTML = `<img src="${escapeHtml(image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`;
+          frame.classList.remove("is-loading", "is-missing");
+          frame.innerHTML = mediaImgHtml(image);
         }
       });
     }
   });
 }
 
+function matchesSearch(item, query) {
+  if (!query) return true;
+  const haystack = [
+    item.title,
+    item.description,
+    item.shop,
+    item.stand,
+    item.url,
+    item.author,
+    item.raw,
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((token) => haystack.includes(token));
+}
+
 function renderCatalog() {
-  const list =
-    state.filter === "all"
-      ? state.goodies
-      : state.goodies.filter((g) => g.status === state.filter);
+  const filtered = state.goodies.filter((g) => {
+    if (state.filter !== "all" && g.status !== state.filter) return false;
+    return matchesSearch(g, state.search);
+  });
 
   els.catalogList.innerHTML = "";
-  els.catalogEmpty.hidden = list.length > 0;
+  els.catalogEmpty.hidden = filtered.length > 0;
+  els.catalogEmpty.textContent = state.search.trim()
+    ? "Aucun goodie ne correspond à la recherche."
+    : "Aucun goodie pour ce filtre.";
 
-  const sorted = [...list].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  const sorted = [...filtered].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
   sorted.forEach((item) => {
     const li = document.createElement("li");
     li.className = "catalog-item";
@@ -583,6 +614,11 @@ document.querySelectorAll(".chip").forEach((chip) => {
     });
     renderCatalog();
   });
+});
+
+els.catalogSearch.addEventListener("input", () => {
+  state.search = els.catalogSearch.value.trim();
+  renderCatalog();
 });
 
 els.catalogList.addEventListener("click", (event) => {
