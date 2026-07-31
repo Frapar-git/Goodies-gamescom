@@ -1,11 +1,28 @@
 const HEADER_INLINE =
-  /^(.+?)\s+[—–-]\s+(Today at \d{1,2}:\d{2}(?:\s?[AP]M)?|Yesterday at \d{1,2}:\d{2}(?:\s?[AP]M)?|\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}(?:\s+\d{1,2}:\d{2})?|\w+ \d{1,2},? \d{4} \d{1,2}:\d{2}(?:\s?[AP]M)?|[A-Za-zàâäéèêëïîôùûüç]+(?:\.?)\s+\d{1,2}:\d{2})$/i;
+  /^(.+?)\s+[—–-]\s+(Today at \d{1,2}:\d{2}(?:\s?[AP]M)?|Yesterday at \d{1,2}:\d{2}(?:\s?[AP]M)?|Aujourd'hui à \d{1,2}:\d{2}|Hier à \d{1,2}:\d{2}|\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}(?:\s+\d{1,2}:\d{2})?|\w+ \d{1,2},? \d{4} \d{1,2}:\d{2}(?:\s?[AP]M)?|[A-Za-zàâäéèêëïîôùûüç]+(?:\.?)\s+\d{1,2}:\d{2})$/i;
 
 const HEADER_TIME_ONLY =
-  /^(Today at \d{1,2}:\d{2}(?:\s?[AP]M)?|Yesterday at \d{1,2}:\d{2}(?:\s?[AP]M)?|Aujourd'hui à \d{1,2}:\d{2}|Hier à \d{1,2}:\d{2}|\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}(?:\s+\d{1,2}:\d{2})?|[A-Za-zàâäéèêëïîôùûüç]+(?:\.?)\s+\d{1,2}:\d{2})$/i;
+  /^(Today at \d{1,2}:\d{2}(?:\s?[AP]M)?|Yesterday at \d{1,2}:\d{2}(?:\s?[AP]M)?|Aujourd'hui à \d{1,2}:\d{2}|Hier à \d{1,2}:\d{2}|\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}(?:\s+\d{1,2}:\d{2})?)$/i;
 
-function isProbablyHeader(line) {
-  return HEADER_INLINE.test(line.trim()) || HEADER_TIME_ONLY.test(line.trim());
+function isUrlLine(line) {
+  return /^https?:\/\/\S+$/i.test(line.trim());
+}
+
+function looksLikeAuthorLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed || isUrlLine(trimmed) || HEADER_TIME_ONLY.test(trimmed)) return false;
+  if (trimmed.length > 80) return false;
+  if (/^[#*>\-|]/.test(trimmed)) return false;
+  return true;
+}
+
+function isNewMessageStart(lines, index) {
+  const trimmed = (lines[index] || "").trim();
+  if (!trimmed) return false;
+  if (HEADER_INLINE.test(trimmed)) return true;
+
+  const next = (lines[index + 1] || "").trim();
+  return Boolean(next && looksLikeAuthorLine(trimmed) && HEADER_TIME_ONLY.test(next));
 }
 
 function splitBlocks(text) {
@@ -25,52 +42,12 @@ function splitBlocks(text) {
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     const trimmed = line.trim();
-    const next = (lines[i + 1] || "").trim();
 
-    if (!trimmed) {
-      if (current.length) push();
-      continue;
-    }
-
-    const inline = trimmed.match(HEADER_INLINE);
-    if (inline) {
-      if (current.length) push();
-      current.push(trimmed);
-      continue;
-    }
-
-    if (
-      HEADER_TIME_ONLY.test(trimmed) &&
-      current.length === 1 &&
-      !isProbablyHeader(current[0])
-    ) {
-      current.push(trimmed);
-      continue;
-    }
-
-    if (
-      !current.length &&
-      next &&
-      HEADER_TIME_ONLY.test(next) &&
-      !HEADER_INLINE.test(trimmed)
-    ) {
-      current.push(trimmed);
-      continue;
-    }
-
-    if (
-      current.length &&
-      HEADER_TIME_ONLY.test(next) === false &&
-      HEADER_INLINE.test(trimmed) === false &&
-      i > 0 &&
-      !lines[i - 1].trim() &&
-      next &&
-      HEADER_TIME_ONLY.test((lines[i + 2] || "").trim())
-    ) {
+    if (current.length && isNewMessageStart(lines, i)) {
       push();
-      current.push(trimmed);
-      continue;
     }
+
+    if (!trimmed && !current.length) continue;
 
     current.push(line);
   }
@@ -97,9 +74,10 @@ function parseBlock(block) {
   const body = bodyLines.join("\n").trim();
   if (!body) return null;
 
-  const bodyParts = body.split("\n").filter((l) => l.trim());
-  const title = bodyParts[0].slice(0, 120);
-  const description = bodyParts.slice(1).join("\n").trim();
+  const bodyParts = body.split("\n").map((l) => l.trim()).filter(Boolean);
+  const titleSource = bodyParts.find((line) => !isUrlLine(line)) || bodyParts[0];
+  const title = titleSource.slice(0, 120);
+  const description = bodyParts.filter((line) => line !== titleSource).join("\n").trim();
 
   return {
     title,
