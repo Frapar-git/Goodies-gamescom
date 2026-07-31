@@ -96,12 +96,12 @@ function renderSwipe() {
     card.innerHTML = `
       <div class="stamp stamp-yes">VALIDÉ</div>
       <div class="stamp stamp-no">ARCHIVÉ</div>
-      <div class="card-content">
-        ${renderMediaHtml(item)}
+      ${renderMediaHtml(item, "card-media")}
+      <div class="card-body">
         <p class="meta">${escapeHtml(item.shop || item.stand || item.author || "Discord")}</p>
         <h2>${escapeHtml(item.title)}</h2>
-        <div class="fact-list">${renderFactsHtml(item, false)}</div>
-        <p>${escapeHtml(item.description || "")}</p>
+        <div class="fact-list fact-list-compact">${renderFactsHtml(item, false)}</div>
+        <p class="card-desc">${escapeHtml(item.description || "")}</p>
       </div>
     `;
     if (!isTop) {
@@ -129,12 +129,16 @@ function mediaImgHtml(imageUrl) {
   return `<img src="${escapeHtml(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="${escapeHtml(imageUrl)}" />`;
 }
 
-function renderMediaHtml(item) {
+function renderMediaHtml(item, extraClass = "") {
+  const classes = ["media-frame", extraClass].filter(Boolean).join(" ");
   if (item.image) {
-    return `<div class="media-frame">${mediaImgHtml(item.image)}</div>`;
+    return `<div class="${classes}">${mediaImgHtml(item.image)}</div>`;
   }
   if (item.url) {
-    return `<div class="media-frame is-loading" data-preview-id="${escapeHtml(item.id || "")}">Aperçu en cours…</div>`;
+    return `<div class="${classes} is-loading" data-preview-id="${escapeHtml(item.id || "")}">Aperçu en cours…</div>`;
+  }
+  if (extraClass.includes("card-media") || extraClass.includes("catalog-media")) {
+    return `<div class="${classes} is-placeholder" aria-hidden="true"></div>`;
   }
   return "";
 }
@@ -351,18 +355,20 @@ function renderCatalog() {
     li.className = "catalog-item";
     li.dataset.itemId = item.id;
     li.innerHTML = `
-      <div class="catalog-item-head">
-        <div>
-          ${renderMediaHtml(item)}
+      ${renderMediaHtml(item, "catalog-media")}
+      <div class="catalog-body">
+        <div class="catalog-item-head">
           <h3>${escapeHtml(item.title)}</h3>
-          <div class="fact-list">${renderFactsHtml(item, true)}</div>
-          <p>${escapeHtml(item.description || "")}</p>
+          <div class="catalog-actions">
+            <button type="button" class="icon-btn" data-edit="${item.id}" aria-label="Modifier">✎</button>
+            <button type="button" class="icon-btn btn-danger-soft" data-delete="${item.id}" aria-label="Supprimer">🗑</button>
+          </div>
+        </div>
+        <div class="fact-list">${renderFactsHtml(item, true)}</div>
+        <p class="catalog-desc">${escapeHtml(item.description || "")}</p>
+        <div class="catalog-foot">
           <p class="meta">${escapeHtml([item.author].filter(Boolean).join(" · ") || item.source)}</p>
           <span class="status status-${item.status}">${labelStatus(item.status)}</span>
-        </div>
-        <div class="catalog-actions">
-          <button type="button" class="icon-btn" data-edit="${item.id}" aria-label="Modifier">✎</button>
-          <button type="button" class="icon-btn btn-danger-soft" data-delete="${item.id}" aria-label="Supprimer">🗑</button>
         </div>
       </div>
     `;
