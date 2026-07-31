@@ -8,7 +8,8 @@ Petite webapp pour trier des goodies Gamescom (style Tinder), avec **import par 
 - **Swipe** : droite = valider, gauche = archiver (boutons aussi)
 - **+ Goodie** : ajout rapide (idéal téléphone)
 - **Catalogue** : tous / en attente / validés / archivés, avec site / boutique / stand mis en avant
-- **Édition** : compléter ou modifier un goodie (URL, boutique, localisation du stand)
+- **Aperçu image** : récupération automatique de l’image de prévisualisation du lien (Open Graph), sinon URL d’image manuelle
+- **Édition** : compléter ou modifier un goodie (URL, image, boutique, localisation du stand)
 - **Export CSV** : ouvrable dans Excel ou Google Sheets (inclut url, shop, stand)
 - Stockage local dans le navigateur (`localStorage`)
 

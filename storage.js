@@ -1,10 +1,20 @@
-import { extractStand, extractUrls, shopFromUrl } from "./parser.js";
+import {
+  extractStand,
+  extractUrls,
+  isImageUrl,
+  pickPageAndImageUrls,
+  shopFromUrl,
+} from "./parser.js";
 
 const STORAGE_KEY = "gamescom-goodies-v1";
 
 export function normalizeGoodie(item) {
   const raw = item?.raw || item?.description || item?.title || "";
-  const url = String(item?.url || extractUrls(raw)[0] || "").trim();
+  const fromRaw = pickPageAndImageUrls(extractUrls(raw));
+  const url = String(item?.url || fromRaw.url || "").trim();
+  const image = String(
+    item?.image || fromRaw.image || (url && isImageUrl(url) ? url : "") || ""
+  ).trim();
   const shop = String(item?.shop || (url ? shopFromUrl(url) : "") || "").trim();
   const stand = String(item?.stand || extractStand(raw) || "").trim();
 
@@ -13,6 +23,7 @@ export function normalizeGoodie(item) {
     title: item.title || "Goodie",
     description: item.description || "",
     url,
+    image,
     shop,
     stand,
     author: item.author || "",
@@ -58,6 +69,7 @@ export function toCsv(goodies) {
     "title",
     "description",
     "url",
+    "image",
     "shop",
     "stand",
     "author",
@@ -82,6 +94,7 @@ export function toCsv(goodies) {
         g.title,
         g.description,
         g.url,
+        g.image,
         g.shop,
         g.stand,
         g.author,

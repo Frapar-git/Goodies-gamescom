@@ -65,6 +65,25 @@ export function extractUrls(text) {
   return [...String(text || "").matchAll(URL_RE)].map((match) => match[0]);
 }
 
+export function isImageUrl(url) {
+  const value = String(url || "");
+  if (!value) return false;
+  if (/\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i.test(value)) return true;
+  return /(?:cdn\.discordapp\.com|media\.discordapp\.net|images-ext-\d+\.discordapp\.net|i\.imgur\.com|pbs\.twimg\.com)/i.test(
+    value
+  );
+}
+
+export function pickPageAndImageUrls(urls) {
+  const list = Array.isArray(urls) ? urls : [];
+  const image = list.find((url) => isImageUrl(url)) || "";
+  const page = list.find((url) => url !== image && !isImageUrl(url)) || "";
+  return {
+    url: page || (image ? "" : list[0] || ""),
+    image: image || (page && isImageUrl(page) ? page : ""),
+  };
+}
+
 function buildTitle(bodyParts) {
   const firstContent = bodyParts.find((line) => !isUrlLine(line) && !/^•/.test(line));
   if (!firstContent) {
@@ -122,6 +141,7 @@ function parseBlock(block) {
 
   const title = buildTitle(bodyParts);
   const urls = extractUrls(body);
+  const { url, image } = pickPageAndImageUrls(urls);
   const descriptionParts = bodyParts.filter((line) => {
     if (line === title) return false;
     const withoutUrls = line.replace(URL_RE, "").replace(/\s+/g, " ").trim();
@@ -133,17 +153,17 @@ function parseBlock(block) {
     if (!uniqueDesc.includes(part)) uniqueDesc.push(part);
   }
 
-  if (urls.length && !uniqueDesc.some((line) => line.includes(urls[0]))) {
-    uniqueDesc.unshift(urls[0]);
+  if (url && !uniqueDesc.some((line) => line.includes(url))) {
+    uniqueDesc.unshift(url);
   }
 
-  const url = urls[0] || "";
   const stand = extractStand(body);
 
   return {
     title,
     description: uniqueDesc.join("\n").trim() || body,
     url,
+    image,
     shop: url ? shopFromUrl(url) : "",
     stand,
     author,

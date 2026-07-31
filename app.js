@@ -1,4 +1,5 @@
 import { parseDiscordPaste, shopFromUrl } from "./parser.js";
+import { fetchLinkImage } from "./preview.js";
 import {
   createId,
   fingerprint,
@@ -34,9 +35,9 @@ const els = {
   quickAddForm: document.getElementById("quickAddForm"),
 };
 
-function persist() {
+function persist(options = {}) {
   saveGoodies(state.goodies);
-  render();
+  if (!options.silent) render();
 }
 
 function showToast(message) {
@@ -94,6 +95,7 @@ function renderSwipe() {
       <div class="stamp stamp-yes">VALIDÉ</div>
       <div class="stamp stamp-no">ARCHIVÉ</div>
       <div class="card-content">
+        ${renderMediaHtml(item)}
         <p class="meta">${escapeHtml(item.shop || item.stand || item.author || "Discord")}</p>
         <h2>${escapeHtml(item.title)}</h2>
         <div class="fact-list">${renderFactsHtml(item, false)}</div>
@@ -108,6 +110,7 @@ function renderSwipe() {
       bindCardGestures(card);
     }
     els.deck.appendChild(card);
+    queuePreviewFetch(item);
   });
 }
 
@@ -117,6 +120,16 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function renderMediaHtml(item) {
+  if (item.image) {
+    return `<div class="media-frame"><img src="${escapeHtml(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" /></div>`;
+  }
+  if (item.url) {
+    return `<div class="media-frame is-loading" data-preview-id="${escapeHtml(item.id)}">Aperçu en cours…</div>`;
+  }
+  return "";
 }
 
 function renderFactsHtml(item, editable) {
@@ -154,6 +167,32 @@ function renderFactsHtml(item, editable) {
       return `<button type="button" class="fact is-empty" data-edit-field="${fact.key}" data-edit="${item.id}">${fact.empty}</button>`;
     })
     .join("");
+}
+
+async function queuePreviewFetch(item) {
+  if (!item?.id || item.image || !item.url) return;
+  const image = await fetchLinkImage(item.url);
+  const current = state.goodies.find((g) => g.id === item.id);
+  if (!current || current.image) return;
+  if (!image) {
+    document.querySelectorAll(`[data-preview-id="${item.id}"]`).forEach((node) => {
+      node.classList.remove("is-loading");
+      node.classList.add("is-missing");
+      node.textContent = "Pas d’aperçu image";
+    });
+    return;
+  }
+  current.image = image;
+  persist({ silent: true });
+  document.querySelectorAll(`[data-preview-id="${item.id}"]`).forEach((node) => {
+    node.classList.remove("is-loading");
+    node.innerHTML = `<img src="${escapeHtml(image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`;
+  });
+  const catalogNode = els.catalogList.querySelector(`[data-item-id="${item.id}"] .media-frame`);
+  if (catalogNode && !catalogNode.querySelector("img")) {
+    catalogNode.classList.remove("is-loading", "is-missing");
+    catalogNode.innerHTML = `<img src="${escapeHtml(image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`;
+  }
 }
 
 function bindCardGestures(card) {
@@ -244,6 +283,7 @@ function renderPreview() {
     li.innerHTML = `
       <input type="checkbox" data-index="${index}" ${item.selected ? "checked" : ""} />
       <div>
+        ${renderMediaHtml(item)}
         <h4>${escapeHtml(item.title)}</h4>
         <div class="fact-list">${renderFactsHtml(item, false)}</div>
         <p>${escapeHtml(item.description)}</p>
@@ -251,6 +291,17 @@ function renderPreview() {
       </div>
     `;
     els.previewList.appendChild(li);
+    if (!item.image && item.url) {
+      fetchLinkImage(item.url).then((image) => {
+        if (!image || !state.preview[index]) return;
+        state.preview[index].image = image;
+        const frame = li.querySelector(".media-frame");
+        if (frame) {
+          frame.classList.remove("is-loading");
+          frame.innerHTML = `<img src="${escapeHtml(image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`;
+        }
+      });
+    }
   });
 }
 
@@ -267,9 +318,11 @@ function renderCatalog() {
   sorted.forEach((item) => {
     const li = document.createElement("li");
     li.className = "catalog-item";
+    li.dataset.itemId = item.id;
     li.innerHTML = `
       <div class="catalog-item-head">
         <div>
+          ${renderMediaHtml(item)}
           <h3>${escapeHtml(item.title)}</h3>
           <div class="fact-list">${renderFactsHtml(item, true)}</div>
           <p>${escapeHtml(item.description || "")}</p>
@@ -283,6 +336,7 @@ function renderCatalog() {
       </div>
     `;
     els.catalogList.appendChild(li);
+    queuePreviewFetch(item);
   });
 }
 
@@ -328,6 +382,7 @@ function importSelected() {
         title: item.title,
         description: item.description,
         url: item.url || "",
+        image: item.image || "",
         shop: item.shop || "",
         stand: item.stand || "",
         author: item.author || "",
@@ -383,6 +438,7 @@ function openEdit(id, focusField = "") {
   document.getElementById("qaSubmit").textContent = "Enregistrer";
   document.getElementById("qaTitle").value = item.title || "";
   document.getElementById("qaUrl").value = item.url || "";
+  document.getElementById("qaImage").value = item.image || "";
   document.getElementById("qaShop").value = item.shop || "";
   document.getElementById("qaStand").value = item.stand || "";
   document.getElementById("qaDesc").value = item.description || "";
@@ -416,6 +472,7 @@ els.quickAddForm.addEventListener("submit", (event) => {
   const id = document.getElementById("qaId").value.trim();
   const title = document.getElementById("qaTitle").value.trim();
   const url = document.getElementById("qaUrl").value.trim();
+  const image = document.getElementById("qaImage").value.trim();
   let shop = document.getElementById("qaShop").value.trim();
   const stand = document.getElementById("qaStand").value.trim();
   const description = document.getElementById("qaDesc").value.trim();
@@ -433,6 +490,7 @@ els.quickAddForm.addEventListener("submit", (event) => {
         ...item,
         title,
         url,
+        image,
         shop,
         stand,
         description,
@@ -451,10 +509,11 @@ els.quickAddForm.addEventListener("submit", (event) => {
       title,
       description,
       url,
+      image,
       shop,
       stand,
       author: "",
-      raw: `${title}\n${url}\n${description}`.trim(),
+      raw: `${title}\n${url}\n${image}\n${description}`.trim(),
       source: "manual",
       status: "pending",
       createdAt: now,
