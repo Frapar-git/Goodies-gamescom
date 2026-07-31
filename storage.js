@@ -1,18 +1,43 @@
+import { extractStand, extractUrls, shopFromUrl } from "./parser.js";
+
 const STORAGE_KEY = "gamescom-goodies-v1";
+
+export function normalizeGoodie(item) {
+  const raw = item?.raw || item?.description || item?.title || "";
+  const url = String(item?.url || extractUrls(raw)[0] || "").trim();
+  const shop = String(item?.shop || (url ? shopFromUrl(url) : "") || "").trim();
+  const stand = String(item?.stand || extractStand(raw) || "").trim();
+
+  return {
+    id: item.id,
+    title: item.title || "Goodie",
+    description: item.description || "",
+    url,
+    shop,
+    stand,
+    author: item.author || "",
+    raw: item.raw || `${item.title || ""}\n${item.description || ""}`.trim(),
+    source: item.source || "manual",
+    status: item.status || "pending",
+    createdAt: item.createdAt || new Date().toISOString(),
+    updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+  };
+}
 
 export function loadGoodies() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeGoodie);
   } catch {
     return [];
   }
 }
 
 export function saveGoodies(goodies) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(goodies));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(goodies.map(normalizeGoodie)));
 }
 
 export function createId() {
@@ -32,6 +57,8 @@ export function toCsv(goodies) {
     "id",
     "title",
     "description",
+    "url",
+    "shop",
     "stand",
     "author",
     "status",
@@ -48,17 +75,20 @@ export function toCsv(goodies) {
 
   const lines = [headers.join(",")];
   for (const item of goodies) {
+    const g = normalizeGoodie(item);
     lines.push(
       [
-        item.id,
-        item.title,
-        item.description,
-        item.stand,
-        item.author,
-        item.status,
-        item.source,
-        item.createdAt,
-        item.updatedAt,
+        g.id,
+        g.title,
+        g.description,
+        g.url,
+        g.shop,
+        g.stand,
+        g.author,
+        g.status,
+        g.source,
+        g.createdAt,
+        g.updatedAt,
       ]
         .map(escape)
         .join(",")

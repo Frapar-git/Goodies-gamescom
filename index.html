@@ -106,16 +106,21 @@
 
     <dialog id="quickAddDialog">
       <form method="dialog" id="quickAddForm" class="dialog-card">
-        <h2>Ajouter un goodie</h2>
+        <h2 id="qaDialogTitle">Ajouter un goodie</h2>
+        <input type="hidden" id="qaId" value="" />
         <label class="label" for="qaTitle">Titre</label>
         <input id="qaTitle" name="title" required placeholder="Ex. Tote bag Ubisoft" />
-        <label class="label" for="qaStand">Stand / lieu</label>
-        <input id="qaStand" name="stand" placeholder="Ex. Hall 6 · Ubisoft" />
+        <label class="label" for="qaUrl">Site web</label>
+        <input id="qaUrl" name="url" type="url" inputmode="url" placeholder="https://…" />
+        <label class="label" for="qaShop">Boutique / marque</label>
+        <input id="qaShop" name="shop" placeholder="Ex. Bandai, Ubisoft…" />
+        <label class="label" for="qaStand">Stand / localisation</label>
+        <input id="qaStand" name="stand" placeholder="Ex. Hall 6 · Stand B12" />
         <label class="label" for="qaDesc">Description</label>
         <textarea id="qaDesc" name="description" rows="3" placeholder="Infos utiles…"></textarea>
         <div class="row dialog-actions">
           <button type="button" class="btn btn-ghost" id="btnCancelQuickAdd">Annuler</button>
-          <button type="submit" class="btn btn-primary">Ajouter</button>
+          <button type="submit" class="btn btn-primary" id="qaSubmit">Ajouter</button>
         </div>
       </form>
     </dialog>

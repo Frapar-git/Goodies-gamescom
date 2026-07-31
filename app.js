@@ -1,8 +1,9 @@
-import { parseDiscordPaste } from "./parser.js";
+import { parseDiscordPaste, shopFromUrl } from "./parser.js";
 import {
   createId,
   fingerprint,
   loadGoodies,
+  normalizeGoodie,
   saveGoodies,
   toCsv,
 } from "./storage.js";
@@ -93,8 +94,9 @@ function renderSwipe() {
       <div class="stamp stamp-yes">VALIDÉ</div>
       <div class="stamp stamp-no">ARCHIVÉ</div>
       <div class="card-content">
-        <p class="meta">${item.stand || item.author || "Discord"}</p>
+        <p class="meta">${escapeHtml(item.shop || item.stand || item.author || "Discord")}</p>
         <h2>${escapeHtml(item.title)}</h2>
+        <div class="fact-list">${renderFactsHtml(item, false)}</div>
         <p>${escapeHtml(item.description || "")}</p>
       </div>
     `;
@@ -115,6 +117,43 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function renderFactsHtml(item, editable) {
+  const facts = [
+    {
+      key: "url",
+      label: "Site",
+      value: item.url,
+      href: item.url,
+      empty: "Site à ajouter",
+    },
+    {
+      key: "shop",
+      label: "Boutique",
+      value: item.shop,
+      empty: "Boutique à ajouter",
+    },
+    {
+      key: "stand",
+      label: "Stand",
+      value: item.stand,
+      empty: "Stand à ajouter",
+    },
+  ];
+
+  return facts
+    .map((fact) => {
+      if (fact.value) {
+        const content = fact.href
+          ? `<a href="${escapeHtml(fact.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(fact.value)}</a>`
+          : escapeHtml(fact.value);
+        return `<div class="fact is-filled"><span class="fact-label">${fact.label}</span><span class="fact-value">${content}</span></div>`;
+      }
+      if (!editable) return "";
+      return `<button type="button" class="fact is-empty" data-edit-field="${fact.key}" data-edit="${item.id}">${fact.empty}</button>`;
+    })
+    .join("");
 }
 
 function bindCardGestures(card) {
@@ -206,6 +245,7 @@ function renderPreview() {
       <input type="checkbox" data-index="${index}" ${item.selected ? "checked" : ""} />
       <div>
         <h4>${escapeHtml(item.title)}</h4>
+        <div class="fact-list">${renderFactsHtml(item, false)}</div>
         <p>${escapeHtml(item.description)}</p>
         <p class="meta">${escapeHtml(item.author || "Auteur inconnu")}</p>
       </div>
@@ -231,11 +271,15 @@ function renderCatalog() {
       <div class="catalog-item-head">
         <div>
           <h3>${escapeHtml(item.title)}</h3>
+          <div class="fact-list">${renderFactsHtml(item, true)}</div>
           <p>${escapeHtml(item.description || "")}</p>
-          <p class="meta">${escapeHtml([item.stand, item.author].filter(Boolean).join(" · ") || item.source)}</p>
+          <p class="meta">${escapeHtml([item.author].filter(Boolean).join(" · ") || item.source)}</p>
           <span class="status status-${item.status}">${labelStatus(item.status)}</span>
         </div>
-        <button type="button" class="icon-btn btn-danger-soft" data-delete="${item.id}" aria-label="Supprimer">🗑</button>
+        <div class="catalog-actions">
+          <button type="button" class="icon-btn" data-edit="${item.id}" aria-label="Modifier">✎</button>
+          <button type="button" class="icon-btn btn-danger-soft" data-delete="${item.id}" aria-label="Supprimer">🗑</button>
+        </div>
       </div>
     `;
     els.catalogList.appendChild(li);
@@ -278,18 +322,22 @@ function importSelected() {
       return;
     }
     known.add(fp);
-    state.goodies.unshift({
-      id: createId(),
-      title: item.title,
-      description: item.description,
-      stand: item.stand || "",
-      author: item.author || "",
-      raw: item.raw || item.title,
-      source: "discord-paste",
-      status: "pending",
-      createdAt: now,
-      updatedAt: now,
-    });
+    state.goodies.unshift(
+      normalizeGoodie({
+        id: createId(),
+        title: item.title,
+        description: item.description,
+        url: item.url || "",
+        shop: item.shop || "",
+        stand: item.stand || "",
+        author: item.author || "",
+        raw: item.raw || item.title,
+        source: "discord-paste",
+        status: "pending",
+        createdAt: now,
+        updatedAt: now,
+      })
+    );
     added += 1;
   });
 
@@ -320,8 +368,33 @@ function exportCsv() {
 
 function openQuickAdd() {
   els.quickAddForm.reset();
+  document.getElementById("qaId").value = "";
+  document.getElementById("qaDialogTitle").textContent = "Ajouter un goodie";
+  document.getElementById("qaSubmit").textContent = "Ajouter";
   els.quickAddDialog.showModal();
   document.getElementById("qaTitle").focus();
+}
+
+function openEdit(id, focusField = "") {
+  const item = state.goodies.find((g) => g.id === id);
+  if (!item) return;
+  document.getElementById("qaId").value = item.id;
+  document.getElementById("qaDialogTitle").textContent = "Modifier le goodie";
+  document.getElementById("qaSubmit").textContent = "Enregistrer";
+  document.getElementById("qaTitle").value = item.title || "";
+  document.getElementById("qaUrl").value = item.url || "";
+  document.getElementById("qaShop").value = item.shop || "";
+  document.getElementById("qaStand").value = item.stand || "";
+  document.getElementById("qaDesc").value = item.description || "";
+  els.quickAddDialog.showModal();
+  const focusEl = focusField === "url"
+    ? document.getElementById("qaUrl")
+    : focusField === "shop"
+      ? document.getElementById("qaShop")
+      : focusField === "stand"
+        ? document.getElementById("qaStand")
+        : document.getElementById("qaTitle");
+  focusEl.focus();
 }
 
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -340,28 +413,66 @@ document.getElementById("btnCancelQuickAdd").addEventListener("click", () => {
 
 els.quickAddForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  const id = document.getElementById("qaId").value.trim();
   const title = document.getElementById("qaTitle").value.trim();
+  const url = document.getElementById("qaUrl").value.trim();
+  let shop = document.getElementById("qaShop").value.trim();
   const stand = document.getElementById("qaStand").value.trim();
   const description = document.getElementById("qaDesc").value.trim();
   if (!title) return;
+  if (!shop && url) shop = shopFromUrl(url);
 
   const now = new Date().toISOString();
-  state.goodies.unshift({
-    id: createId(),
-    title,
-    description,
-    stand,
-    author: "",
-    raw: `${title}\n${description}`.trim(),
-    source: "manual",
-    status: "pending",
-    createdAt: now,
-    updatedAt: now,
-  });
+
+  if (id) {
+    const item = state.goodies.find((g) => g.id === id);
+    if (!item) return;
+    Object.assign(
+      item,
+      normalizeGoodie({
+        ...item,
+        title,
+        url,
+        shop,
+        stand,
+        description,
+        updatedAt: now,
+      })
+    );
+    els.quickAddDialog.close();
+    persist();
+    showToast("Goodie mis à jour");
+    return;
+  }
+
+  state.goodies.unshift(
+    normalizeGoodie({
+      id: createId(),
+      title,
+      description,
+      url,
+      shop,
+      stand,
+      author: "",
+      raw: `${title}\n${url}\n${description}`.trim(),
+      source: "manual",
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+    })
+  );
   els.quickAddDialog.close();
   persist();
   setView("swipe");
   showToast("Goodie ajouté");
+});
+
+document.getElementById("qaUrl").addEventListener("change", () => {
+  const url = document.getElementById("qaUrl").value.trim();
+  const shopInput = document.getElementById("qaShop");
+  if (url && !shopInput.value.trim()) {
+    shopInput.value = shopFromUrl(url);
+  }
 });
 
 document.getElementById("btnParse").addEventListener("click", () => {
@@ -416,6 +527,12 @@ document.querySelectorAll(".chip").forEach((chip) => {
 });
 
 els.catalogList.addEventListener("click", (event) => {
+  const editBtn = event.target.closest("[data-edit]");
+  if (editBtn) {
+    openEdit(editBtn.getAttribute("data-edit"), editBtn.getAttribute("data-edit-field") || "");
+    return;
+  }
+
   const btn = event.target.closest("[data-delete]");
   if (!btn) return;
   const id = btn.getAttribute("data-delete");

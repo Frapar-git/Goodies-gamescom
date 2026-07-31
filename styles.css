@@ -340,6 +340,75 @@ input:focus {
   align-items: start;
 }
 
+.catalog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 8px;
+  align-items: start;
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+}
+
+.fact.is-filled {
+  background: rgba(61, 255, 154, 0.08);
+  border-color: rgba(61, 255, 154, 0.28);
+}
+
+.fact.is-empty {
+  cursor: pointer;
+  background: rgba(255, 225, 74, 0.06);
+  border-style: dashed;
+  border-color: rgba(255, 225, 74, 0.35);
+  color: var(--accent);
+  grid-template-columns: 1fr;
+}
+
+.fact-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fact-value {
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
+.fact-value a {
+  color: var(--yes);
+  font-weight: 600;
+}
+
+.card-content .fact-list {
+  margin-top: 0;
+}
+
+.card-content .fact {
+  grid-template-columns: 4.5rem 1fr;
+  padding: 6px 8px;
+}
+
 .deck {
   position: relative;
   min-height: 420px;

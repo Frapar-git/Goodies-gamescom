@@ -7,8 +7,9 @@ Petite webapp pour trier des goodies Gamescom (style Tinder), avec **import par 
 - **Import Discord** : coller des messages copiés depuis Discord → aperçu → import
 - **Swipe** : droite = valider, gauche = archiver (boutons aussi)
 - **+ Goodie** : ajout rapide (idéal téléphone)
-- **Catalogue** : tous / en attente / validés / archivés
-- **Export CSV** : ouvrable dans Excel ou Google Sheets
+- **Catalogue** : tous / en attente / validés / archivés, avec site / boutique / stand mis en avant
+- **Édition** : compléter ou modifier un goodie (URL, boutique, localisation du stand)
+- **Export CSV** : ouvrable dans Excel ou Google Sheets (inclut url, shop, stand)
 - Stockage local dans le navigateur (`localStorage`)
 
 ## Utilisation rapide

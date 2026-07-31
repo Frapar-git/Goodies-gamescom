@@ -61,8 +61,8 @@ function cleanAuthor(author) {
   return author.replace(/,\s*$/, "").replace(/\s+/g, " ").trim();
 }
 
-function extractUrls(text) {
-  return [...text.matchAll(URL_RE)].map((match) => match[0]);
+export function extractUrls(text) {
+  return [...String(text || "").matchAll(URL_RE)].map((match) => match[0]);
 }
 
 function buildTitle(bodyParts) {
@@ -80,6 +80,21 @@ function buildTitle(bodyParts) {
   });
   remainder = remainder.replace(/\s+/g, " ").trim();
   return (remainder || urls[0]).slice(0, 120);
+}
+
+export function shopFromUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "");
+  } catch {
+    return "";
+  }
+}
+
+export function extractStand(text) {
+  const match = String(text || "").match(
+    /\b(?:Hall(?:e)?|Stand|Booth|Aisle|Gang)\s*[A-Z]?\d+(?:\s*(?:[./\-–·,]|Stand|Booth|Hall(?:e)?)\s*[A-Z]?\d+)*/i
+  );
+  return match ? match[0].replace(/\s+/g, " ").trim() : "";
 }
 
 function parseBlock(block) {
@@ -122,10 +137,15 @@ function parseBlock(block) {
     uniqueDesc.unshift(urls[0]);
   }
 
+  const url = urls[0] || "";
+  const stand = extractStand(body);
+
   return {
     title,
     description: uniqueDesc.join("\n").trim() || body,
-    stand: "",
+    url,
+    shop: url ? shopFromUrl(url) : "",
+    stand,
     author,
     raw: body,
   };
