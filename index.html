@@ -97,16 +97,17 @@
               <input
                 id="catalogSearch"
                 type="search"
-                placeholder="Titre, boutique, stand, site…"
+                placeholder="Titre, boutique, stand, journée, site…"
                 autocomplete="off"
               />
             </div>
-            <div class="filters" role="group" aria-label="Filtres">
+            <div class="filters" role="group" aria-label="Filtres statut">
               <button type="button" class="chip is-active" data-filter="all">Tous</button>
               <button type="button" class="chip" data-filter="pending">En attente</button>
               <button type="button" class="chip" data-filter="validated">Validés</button>
               <button type="button" class="chip" data-filter="archived">Archivés</button>
             </div>
+            <div class="filters day-filters" id="dayFilters" role="group" aria-label="Filtres journée"></div>
             <ul class="catalog-list" id="catalogList"></ul>
             <p class="help" id="catalogEmpty" hidden>Aucun goodie pour ce filtre.</p>
           </div>
@@ -128,6 +129,13 @@
         <input id="qaShop" name="shop" placeholder="Ex. Bandai, Ubisoft…" />
         <label class="label" for="qaStand">Stand / localisation</label>
         <input id="qaStand" name="stand" placeholder="Ex. Hall 6 · Stand B12" />
+        <label class="label" for="qaDay">Journée prévue</label>
+        <input id="qaDay" name="day" type="date" />
+        <div class="row day-quick">
+          <button type="button" class="btn btn-secondary btn-sm" id="qaDayToday">Aujourd’hui</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="qaDayTomorrow">Demain</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="qaDayClear">Effacer</button>
+        </div>
         <label class="label" for="qaDesc">Description</label>
         <textarea id="qaDesc" name="description" rows="3" placeholder="Infos utiles…"></textarea>
         <div class="row dialog-actions">

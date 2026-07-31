@@ -367,7 +367,32 @@ input:focus {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.day-filters {
   margin-bottom: 14px;
+  padding-top: 2px;
+}
+
+.day-badge {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(240, 194, 75, 0.14);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.day-quick {
+  margin-top: 8px;
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 0.85rem;
 }
 
 .chip {

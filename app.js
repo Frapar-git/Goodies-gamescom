@@ -13,6 +13,7 @@ const state = {
   goodies: loadGoodies(),
   view: "swipe",
   filter: "all",
+  dayFilter: "all",
   search: "",
   preview: [],
   history: [],
@@ -32,10 +33,34 @@ const els = {
   catalogList: document.getElementById("catalogList"),
   catalogEmpty: document.getElementById("catalogEmpty"),
   catalogSearch: document.getElementById("catalogSearch"),
+  dayFilters: document.getElementById("dayFilters"),
   toast: document.getElementById("toast"),
   quickAddDialog: document.getElementById("quickAddDialog"),
   quickAddForm: document.getElementById("quickAddForm"),
 };
+
+function localISODate(offsetDays = 0) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + offsetDays);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatDayLabel(iso) {
+  if (!iso) return "";
+  try {
+    return new Intl.DateTimeFormat("fr-FR", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(new Date(`${iso}T12:00:00`));
+  } catch {
+    return iso;
+  }
+}
 
 function persist(options = {}) {
   saveGoodies(state.goodies);
@@ -98,7 +123,11 @@ function renderSwipe() {
       <div class="stamp stamp-no">ARCHIVÉ</div>
       ${renderMediaHtml(item, "card-media")}
       <div class="card-body">
-        <p class="meta">${escapeHtml(item.shop || item.stand || item.author || "Discord")}</p>
+        <p class="meta">${escapeHtml(
+          [item.day ? formatDayLabel(item.day) : "", item.shop || item.stand || item.author || "Discord"]
+            .filter(Boolean)
+            .join(" · ")
+        )}</p>
         <h2>${escapeHtml(item.title)}</h2>
         <div class="fact-list fact-list-compact">${renderFactsHtml(item, false)}</div>
         <p class="card-desc">${escapeHtml(item.description || "")}</p>
@@ -145,6 +174,12 @@ function renderMediaHtml(item, extraClass = "") {
 
 function renderFactsHtml(item, editable) {
   const facts = [
+    {
+      key: "day",
+      label: "Jour",
+      value: item.day ? formatDayLabel(item.day) : "",
+      empty: "Journée à planifier",
+    },
     {
       key: "url",
       label: "Site",
@@ -323,6 +358,8 @@ function matchesSearch(item, query) {
     item.description,
     item.shop,
     item.stand,
+    item.day,
+    item.day ? formatDayLabel(item.day) : "",
     item.url,
     item.author,
     item.raw,
@@ -337,29 +374,77 @@ function matchesSearch(item, query) {
     .every((token) => haystack.includes(token));
 }
 
+function matchesDayFilter(item) {
+  if (state.dayFilter === "all") return true;
+  if (state.dayFilter === "none") return !item.day;
+  if (state.dayFilter === "today") return item.day === localISODate(0);
+  return item.day === state.dayFilter;
+}
+
+function renderDayFilters() {
+  const today = localISODate(0);
+  const days = [...new Set(state.goodies.map((g) => g.day).filter(Boolean))]
+    .sort()
+    .filter((day) => day !== today);
+
+  const chips = [
+    { value: "all", label: "Toutes les journées" },
+    { value: "today", label: "Aujourd’hui" },
+    { value: "none", label: "Sans journée" },
+    ...days.map((day) => ({ value: day, label: formatDayLabel(day) })),
+  ];
+
+  els.dayFilters.innerHTML = "";
+  chips.forEach((chip) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `chip ${state.dayFilter === chip.value ? "is-active" : ""}`;
+    btn.dataset.dayFilter = chip.value;
+    btn.textContent = chip.label;
+    els.dayFilters.appendChild(btn);
+  });
+}
+
 function renderCatalog() {
+  renderDayFilters();
+
   const filtered = state.goodies.filter((g) => {
     if (state.filter !== "all" && g.status !== state.filter) return false;
+    if (!matchesDayFilter(g)) return false;
     return matchesSearch(g, state.search);
   });
 
   els.catalogList.innerHTML = "";
   els.catalogEmpty.hidden = filtered.length > 0;
-  els.catalogEmpty.textContent = state.search.trim()
-    ? "Aucun goodie ne correspond à la recherche."
-    : "Aucun goodie pour ce filtre.";
+  els.catalogEmpty.textContent =
+    state.search.trim() || state.dayFilter !== "all"
+      ? "Aucun goodie ne correspond à ces filtres."
+      : "Aucun goodie pour ce filtre.";
 
-  const sorted = [...filtered].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  const sorted = [...filtered].sort((a, b) => {
+    if (a.day && b.day && a.day !== b.day) return a.day < b.day ? -1 : 1;
+    if (a.day && !b.day) return -1;
+    if (!a.day && b.day) return 1;
+    return a.updatedAt < b.updatedAt ? 1 : -1;
+  });
+
   sorted.forEach((item) => {
     const li = document.createElement("li");
     li.className = "catalog-item";
     li.dataset.itemId = item.id;
+    const dayBadge = item.day
+      ? `<span class="day-badge">${escapeHtml(formatDayLabel(item.day))}</span>`
+      : "";
     li.innerHTML = `
       ${renderMediaHtml(item, "catalog-media")}
       <div class="catalog-body">
         <div class="catalog-item-head">
-          <h3>${escapeHtml(item.title)}</h3>
+          <div>
+            <h3>${escapeHtml(item.title)}</h3>
+            ${dayBadge}
+          </div>
           <div class="catalog-actions">
+            <button type="button" class="icon-btn" data-day-today="${item.id}" aria-label="Mettre pour aujourd’hui" title="Pour aujourd’hui">📅</button>
             <button type="button" class="icon-btn" data-edit="${item.id}" aria-label="Modifier">✎</button>
             <button type="button" class="icon-btn btn-danger-soft" data-delete="${item.id}" aria-label="Supprimer">🗑</button>
           </div>
@@ -422,6 +507,7 @@ function importSelected() {
         image: item.image || "",
         shop: item.shop || "",
         stand: item.stand || "",
+        day: item.day || "",
         author: item.author || "",
         raw: item.raw || item.title,
         source: "discord-paste",
@@ -461,6 +547,7 @@ function exportCsv() {
 function openQuickAdd() {
   els.quickAddForm.reset();
   document.getElementById("qaId").value = "";
+  document.getElementById("qaDay").value = "";
   document.getElementById("qaDialogTitle").textContent = "Ajouter un goodie";
   document.getElementById("qaSubmit").textContent = "Ajouter";
   els.quickAddDialog.showModal();
@@ -478,6 +565,7 @@ function openEdit(id, focusField = "") {
   document.getElementById("qaImage").value = item.image || "";
   document.getElementById("qaShop").value = item.shop || "";
   document.getElementById("qaStand").value = item.stand || "";
+  document.getElementById("qaDay").value = item.day || "";
   document.getElementById("qaDesc").value = item.description || "";
   els.quickAddDialog.showModal();
   const focusEl = focusField === "url"
@@ -486,8 +574,19 @@ function openEdit(id, focusField = "") {
       ? document.getElementById("qaShop")
       : focusField === "stand"
         ? document.getElementById("qaStand")
-        : document.getElementById("qaTitle");
+        : focusField === "day"
+          ? document.getElementById("qaDay")
+          : document.getElementById("qaTitle");
   focusEl.focus();
+}
+
+function setGoodieDay(id, day) {
+  const item = state.goodies.find((g) => g.id === id);
+  if (!item) return;
+  item.day = day || "";
+  item.updatedAt = new Date().toISOString();
+  persist();
+  showToast(day ? `Planifié pour ${formatDayLabel(day)}` : "Journée retirée");
 }
 
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -512,6 +611,7 @@ els.quickAddForm.addEventListener("submit", (event) => {
   const image = document.getElementById("qaImage").value.trim();
   let shop = document.getElementById("qaShop").value.trim();
   const stand = document.getElementById("qaStand").value.trim();
+  const day = document.getElementById("qaDay").value.trim();
   const description = document.getElementById("qaDesc").value.trim();
   if (!title) return;
   if (!shop && url) shop = shopFromUrl(url);
@@ -530,6 +630,7 @@ els.quickAddForm.addEventListener("submit", (event) => {
         image,
         shop,
         stand,
+        day,
         description,
         updatedAt: now,
       })
@@ -549,6 +650,7 @@ els.quickAddForm.addEventListener("submit", (event) => {
       image,
       shop,
       stand,
+      day,
       author: "",
       raw: `${title}\n${url}\n${image}\n${description}`.trim(),
       source: "manual",
@@ -561,6 +663,16 @@ els.quickAddForm.addEventListener("submit", (event) => {
   persist();
   setView("swipe");
   showToast("Goodie ajouté");
+});
+
+document.getElementById("qaDayToday").addEventListener("click", () => {
+  document.getElementById("qaDay").value = localISODate(0);
+});
+document.getElementById("qaDayTomorrow").addEventListener("click", () => {
+  document.getElementById("qaDay").value = localISODate(1);
+});
+document.getElementById("qaDayClear").addEventListener("click", () => {
+  document.getElementById("qaDay").value = "";
 });
 
 document.getElementById("qaUrl").addEventListener("change", () => {
@@ -612,14 +724,21 @@ document.getElementById("btnArchive").addEventListener("click", () => {
 document.getElementById("btnUndo").addEventListener("click", undo);
 document.getElementById("btnExport").addEventListener("click", exportCsv);
 
-document.querySelectorAll(".chip").forEach((chip) => {
+document.querySelectorAll("[data-filter]").forEach((chip) => {
   chip.addEventListener("click", () => {
     state.filter = chip.dataset.filter;
-    document.querySelectorAll(".chip").forEach((c) => {
+    document.querySelectorAll("[data-filter]").forEach((c) => {
       c.classList.toggle("is-active", c === chip);
     });
     renderCatalog();
   });
+});
+
+els.dayFilters.addEventListener("click", (event) => {
+  const chip = event.target.closest("[data-day-filter]");
+  if (!chip) return;
+  state.dayFilter = chip.dataset.dayFilter;
+  renderCatalog();
 });
 
 els.catalogSearch.addEventListener("input", () => {
@@ -628,6 +747,15 @@ els.catalogSearch.addEventListener("input", () => {
 });
 
 els.catalogList.addEventListener("click", (event) => {
+  const dayBtn = event.target.closest("[data-day-today]");
+  if (dayBtn) {
+    const id = dayBtn.getAttribute("data-day-today");
+    const item = state.goodies.find((g) => g.id === id);
+    const today = localISODate(0);
+    setGoodieDay(id, item?.day === today ? "" : today);
+    return;
+  }
+
   const editBtn = event.target.closest("[data-edit]");
   if (editBtn) {
     openEdit(editBtn.getAttribute("data-edit"), editBtn.getAttribute("data-edit-field") || "");

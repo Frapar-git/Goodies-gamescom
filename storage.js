@@ -17,6 +17,11 @@ export function normalizeGoodie(item) {
   ).trim();
   const shop = String(item?.shop || (url ? shopFromUrl(url) : "") || "").trim();
   const stand = String(item?.stand || extractStand(raw) || "").trim();
+  const day = String(item?.day || "")
+    .trim()
+    .match(/^\d{4}-\d{2}-\d{2}$/)
+    ? String(item.day).trim()
+    : "";
 
   return {
     id: item.id,
@@ -26,6 +31,7 @@ export function normalizeGoodie(item) {
     image,
     shop,
     stand,
+    day,
     author: item.author || "",
     raw: item.raw || `${item.title || ""}\n${item.description || ""}`.trim(),
     source: item.source || "manual",
@@ -72,6 +78,7 @@ export function toCsv(goodies) {
     "image",
     "shop",
     "stand",
+    "day",
     "author",
     "status",
     "source",
@@ -97,6 +104,7 @@ export function toCsv(goodies) {
         g.image,
         g.shop,
         g.stand,
+        g.day,
         g.author,
         g.status,
         g.source,
