@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1020" />
+    <title>Gamescom Goodies</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div>
+          <p class="brand">Gamescom Goodies</p>
+          <p class="tagline" id="statsLine">0 en attente</p>
+        </div>
+        <button type="button" class="btn btn-ghost" id="btnQuickAdd" aria-label="Ajouter un goodie">
+          + Goodie
+        </button>
+      </header>
+
+      <nav class="tabs" aria-label="Navigation">
+        <button type="button" class="tab is-active" data-view="swipe">Swipe</button>
+        <button type="button" class="tab" data-view="import">Import</button>
+        <button type="button" class="tab" data-view="catalog">Catalogue</button>
+      </nav>
+
+      <main>
+        <section id="view-swipe" class="view is-active">
+          <div class="deck" id="deck">
+            <div class="empty-state" id="swipeEmpty">
+              <h2>File vide</h2>
+              <p>Importe des messages Discord ou ajoute un goodie pour commencer à swiper.</p>
+              <div class="empty-actions">
+                <button type="button" class="btn btn-primary" data-go="import">Importer</button>
+                <button type="button" class="btn btn-secondary" id="btnQuickAddEmpty">+ Goodie</button>
+              </div>
+            </div>
+          </div>
+          <div class="swipe-actions" id="swipeActions" hidden>
+            <button type="button" class="fab fab-no" id="btnArchive" aria-label="Archiver">✕</button>
+            <button type="button" class="fab fab-undo" id="btnUndo" aria-label="Annuler" title="Annuler">↩</button>
+            <button type="button" class="fab fab-yes" id="btnValidate" aria-label="Valider">✓</button>
+          </div>
+          <p class="hint">Glisse à droite pour valider · à gauche pour archiver</p>
+        </section>
+
+        <section id="view-import" class="view">
+          <div class="panel">
+            <h2>Coller depuis Discord</h2>
+            <p class="help">
+              Sur PC : sélectionne les messages dans Discord, copie (<kbd>Ctrl</kbd>+<kbd>C</kbd>),
+              colle ici, puis prévisualise avant d’importer.
+            </p>
+            <label class="label" for="pasteArea">Messages Discord</label>
+            <textarea
+              id="pasteArea"
+              rows="10"
+              placeholder="Colle ici le texte copié depuis Discord…"
+            ></textarea>
+            <div class="row">
+              <button type="button" class="btn btn-secondary" id="btnParse">Prévisualiser</button>
+              <button type="button" class="btn btn-ghost" id="btnClearPaste">Effacer</button>
+            </div>
+          </div>
+
+          <div class="panel" id="previewPanel" hidden>
+            <div class="panel-head">
+              <h3>Aperçu (<span id="previewCount">0</span>)</h3>
+              <label class="check">
+                <input type="checkbox" id="selectAllPreview" checked />
+                Tout sélectionner
+              </label>
+            </div>
+            <ul class="preview-list" id="previewList"></ul>
+            <button type="button" class="btn btn-primary btn-block" id="btnConfirmImport">
+              Importer la sélection
+            </button>
+          </div>
+        </section>
+
+        <section id="view-catalog" class="view">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Catalogue</h2>
+              <button type="button" class="btn btn-secondary" id="btnExport">Export CSV</button>
+            </div>
+            <div class="filters" role="group" aria-label="Filtres">
+              <button type="button" class="chip is-active" data-filter="all">Tous</button>
+              <button type="button" class="chip" data-filter="pending">En attente</button>
+              <button type="button" class="chip" data-filter="validated">Validés</button>
+              <button type="button" class="chip" data-filter="archived">Archivés</button>
+            </div>
+            <ul class="catalog-list" id="catalogList"></ul>
+            <p class="help" id="catalogEmpty" hidden>Aucun goodie pour ce filtre.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="quickAddDialog">
+      <form method="dialog" id="quickAddForm" class="dialog-card">
+        <h2>Ajouter un goodie</h2>
+        <label class="label" for="qaTitle">Titre</label>
+        <input id="qaTitle" name="title" required placeholder="Ex. Tote bag Ubisoft" />
+        <label class="label" for="qaStand">Stand / lieu</label>
+        <input id="qaStand" name="stand" placeholder="Ex. Hall 6 · Ubisoft" />
+        <label class="label" for="qaDesc">Description</label>
+        <textarea id="qaDesc" name="description" rows="3" placeholder="Infos utiles…"></textarea>
+        <div class="row dialog-actions">
+          <button type="button" class="btn btn-ghost" id="btnCancelQuickAdd">Annuler</button>
+          <button type="submit" class="btn btn-primary">Ajouter</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

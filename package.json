@@ -1,0 +1,6 @@
+{
+  "name": "gamescom-goodies",
+  "private": true,
+  "type": "module",
+  "description": "Tinder-like Gamescom goodies sorter with Discord paste import"
+}
